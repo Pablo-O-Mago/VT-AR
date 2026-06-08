@@ -3,224 +3,314 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Vitrine AR — Protótipo</title>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <title>Vitrine AR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+  <script src="https://jeromeetienne.github.io/AR.js/three.js/build/ar.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: sans-serif; background: #000; }
 
-    /* Garante que o vídeo da câmera ocupe a tela toda sem zoom */
-    #arjs-video, video {
-      object-fit: cover !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
+    #ar-canvas { position: fixed; inset: 0; width: 100% !important; height: 100% !important; }
+
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      padding: 8px 12px; display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.6);
+    }
+    #topbar span {
+      color: #fff; font-size: 12px; font-weight: 700;
+      background: #1976d2; padding: 4px 10px; border-radius: 20px;
+    }
+    #topbar button {
+      background: rgba(255,255,255,0.15); color: #fff; border: none;
+      border-radius: 20px; padding: 6px 12px; font-size: 12px; cursor: pointer;
     }
 
-    canvas {
-      width: 100vw !important;
-      height: 100vh !important;
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
+    #hint {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.65); color: #fff; font-size: 13px;
+      padding: 8px 20px; border-radius: 20px; z-index: 999;
+      pointer-events: none; white-space: nowrap;
     }
 
-    #ui { position: fixed; top: 0; left: 0; right: 0; z-index: 999; padding: 10px 14px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.55); }
-    #search { flex: 1; padding: 7px 12px; border-radius: 20px; border: none; font-size: 14px; outline: none; }
-    #clear-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
-    #clear-btn:hover { background: rgba(255,255,255,0.25); }
-    #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; z-index: 999; text-align: center; pointer-events: none; transition: opacity 1s; white-space: nowrap; }
-    #modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center; }
-    #modal.open { display: flex; }
-    #modal-card { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 32px; width: 100%; max-width: 480px; }
-    #modal-card h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
-    #modal-card .ref { font-size: 13px; color: #888; margin: 0 0 16px; }
-    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .ar-label {
+      position: fixed;
+      z-index: 100;
+      pointer-events: auto;
+      transform: translate(-50%, -100%);
+      background: rgba(10,10,40,0.92);
+      border: 2px solid #4fc3f7;
+      border-radius: 12px;
+      padding: 8px 14px;
+      color: #fff;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      display: none;
+    }
+    .ar-label .lbl-nome { font-size: 15px; font-weight: 700; }
+    .ar-label .lbl-ref  { font-size: 12px; color: #4fc3f7; margin-top: 2px; }
+    .ar-label .lbl-est  { font-size: 11px; color: #aaa; margin-top: 1px; }
+    .ar-label::after {
+      content: '';
+      position: absolute;
+      bottom: -10px; left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #4fc3f7;
+    }
+
+    #loading {
+      position: fixed; inset: 0; background: #111;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; z-index: 9999; color: #fff;
+    }
+    #loading h2 { font-size: 18px; font-weight: 700; }
+    #load-bar-wrap { width: 220px; background: #333; border-radius: 99px; height: 6px; }
+    #load-bar { background: #4fc3f7; height: 100%; width: 0%; border-radius: 99px; transition: width 0.3s; }
+    #load-txt { font-size: 13px; color: #aaa; text-align: center; padding: 0 32px; }
+
+    #no-produtos {
+      display: none; position: fixed; inset: 0; background: #111;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; z-index: 9999; color: #fff; text-align: center; padding: 32px;
+    }
+    #no-produtos h2 { font-size: 20px; }
+    #no-produtos p  { font-size: 14px; color: #aaa; }
+    #no-produtos button {
+      background: #4fc3f7; color: #000; border: none; border-radius: 12px;
+      padding: 14px 32px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px;
+    }
+
+    #info-modal {
+      display: none; position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center;
+    }
+    #info-modal.open { display: flex; }
+    #info-card {
+      background: #fff; border-radius: 20px 20px 0 0;
+      padding: 24px 20px 36px; width: 100%; max-width: 480px;
+    }
+    #info-card h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
+    .sub { color: #888; font-size: 13px; margin-bottom: 16px; display: block; }
+    .info-row {
+      display: flex; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px;
+    }
     .info-row:last-of-type { border-bottom: none; }
     .info-label { color: #888; }
     .info-val { font-weight: 500; }
-    #close-btn { width: 100%; margin-top: 16px; padding: 12px; background: #111; color: #fff; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; }
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+    .btn-row button {
+      flex: 1; padding: 13px; border: none; border-radius: 12px;
+      font-size: 14px; cursor: pointer; font-weight: 600;
+    }
+    #btn-fechar   { background: #111; color: #fff; }
+    #btn-cadastro { background: #f0f0f0; color: #333; font-weight: 400; }
   </style>
 </head>
 <body>
 
-<div id="ui">
-  <input id="search" type="text" placeholder="Buscar por código (ex: 001)" oninput="onSearch(this.value)" />
-  <button id="clear-btn" onclick="clearSearch()">Limpar</button>
+<canvas id="ar-canvas"></canvas>
+
+<div id="loading">
+  <h2>Vitrine AR</h2>
+  <div id="load-bar-wrap"><div id="load-bar"></div></div>
+  <p id="load-txt">Carregando...</p>
 </div>
 
-<div id="hint">Aponte a câmera para o marcador impresso</div>
+<div id="no-produtos">
+  <h2>Nenhum produto cadastrado</h2>
+  <p>Cadastre produtos para gerar seus marcadores AR.</p>
+  <button onclick="location.href='cadastro.html'">Ir para o Cadastro</button>
+</div>
 
-<div id="modal">
-  <div id="modal-card">
-    <h2 id="m-nome"></h2>
-    <p class="ref" id="m-ref"></p>
-    <div class="info-row"><span class="info-label">Categoria</span><span class="info-val" id="m-cat"></span></div>
-    <div class="info-row"><span class="info-label">Cor</span><span class="info-val" id="m-cor"></span></div>
-    <div class="info-row"><span class="info-label">Estoque</span><span class="info-val" id="m-estoque"></span></div>
-    <div class="info-row"><span class="info-label">Localização</span><span class="info-val" id="m-loc"></span></div>
-    <button id="close-btn" onclick="closeModal()">Fechar</button>
+<div id="topbar">
+  <span>VITRINE AR</span>
+  <button onclick="window.open('cadastro.html')">Cadastro</button>
+</div>
+<div id="hint">Aponte a câmera para um marcador</div>
+
+<div id="info-modal">
+  <div id="info-card">
+    <h2 id="i-nome"></h2>
+    <span class="sub" id="i-ref"></span>
+    <div class="info-row"><span class="info-label">Estoque</span><span class="info-val" id="i-estoque"></span></div>
+    <div class="info-row"><span class="info-label">Localização</span><span class="info-val" id="i-loc"></span></div>
+    <div class="btn-row">
+      <button id="btn-cadastro" onclick="window.open('cadastro.html')">Editar</button>
+      <button id="btn-fechar"   onclick="fecharInfo()">Fechar</button>
+    </div>
   </div>
 </div>
 
-<a-scene
-  embedded
-  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-  renderer="logarithmicDepthBuffer: true; antialias: true;"
-  vr-mode-ui="enabled: false"
->
-
-  <!-- ITEM 001 — Fone (marcador Hiro padrão) -->
-  <a-marker type="pattern" url="https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.hiro" id="marker-001">
-    <a-entity position="0 0.1 0" rotation="-90 0 0">
-      <a-plane id="label-001"
-        width="1.8" height="0.5"
-        material="color: #1a1a2e; opacity: 0.92; side: double"
-        position="0 0 0">
-      </a-plane>
-      <a-text id="text-001"
-        value="FONE\nRef: 001"
-        align="center"
-        color="white"
-        width="1.6"
-        position="0 0 0.01"
-        font="roboto">
-      </a-text>
-      <a-plane
-        width="1.8" height="0.08"
-        material="color: #4fc3f7; opacity: 0.95; side: double"
-        position="0 -0.21 0.005">
-      </a-plane>
-    </a-entity>
-  </a-marker>
-
-  <!-- ITEM 002 — Teclado (marcador Kanji) -->
-  <a-marker type="pattern" url="https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.kanji" id="marker-002">
-    <a-entity position="0 0.1 0" rotation="-90 0 0">
-      <a-plane id="label-002"
-        width="1.8" height="0.5"
-        material="color: #1a1a2e; opacity: 0.92; side: double"
-        position="0 0 0">
-      </a-plane>
-      <a-text id="text-002"
-        value="TECLADO\nRef: 002"
-        align="center"
-        color="white"
-        width="1.6"
-        position="0 0 0.01"
-        font="roboto">
-      </a-text>
-      <a-plane
-        width="1.8" height="0.08"
-        material="color: #4fc3f7; opacity: 0.95; side: double"
-        position="0 -0.21 0.005">
-      </a-plane>
-    </a-entity>
-  </a-marker>
-
-  <!-- câmera AR com FOV ajustado para mobile -->
-  <a-entity camera fov="60"></a-entity>
-</a-scene>
-
 <script>
-const produtos = {
-  "001": { nome: "Fone de Ouvido", ref: "Ref: 001", cat: "Eletrônico", cor: "Preto", estoque: "3 unidades", loc: "Prateleira A1", markerId: "marker-001", labelId: "label-001", textId: "text-001" },
-  "002": { nome: "Teclado Mecânico", ref: "Ref: 002", cat: "Periférico", cor: "Branco", estoque: "1 unidade", loc: "Prateleira A2", markerId: "marker-002", labelId: "label-002", textId: "text-002" },
-};
-
-let searchQuery = "";
-let hintHidden = false;
-
-function setHint(text) {
-  const h = document.getElementById('hint');
-  if (!h) return;
-  h.style.opacity = '1';
-  h.textContent = text;
-  hintHidden = false;
+function fecharInfo() {
+  document.getElementById('info-modal').classList.remove('open');
+}
+function abrirInfo(p) {
+  document.getElementById('i-nome').textContent    = p.nome;
+  document.getElementById('i-ref').textContent     = p.ref || '';
+  document.getElementById('i-estoque').textContent = p.estoque || '—';
+  document.getElementById('i-loc').textContent     = p.loc || '—';
+  document.getElementById('info-modal').classList.add('open');
+}
+function setLoad(pct, txt) {
+  document.getElementById('load-bar').style.width = pct + '%';
+  document.getElementById('load-txt').textContent = txt;
 }
 
-function onSearch(val) {
-  searchQuery = val.trim().toLowerCase();
-  updateLabels();
-  setHint(searchQuery
-    ? `Buscando: ${searchQuery.toUpperCase()} — procure o item em verde`
-    : 'Aponte a câmera para o marcador impresso');
+// ── IndexedDB ─────────────────────────────────────────────────────────────────
+function abrirDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('vt-ar', 2);
+    req.onupgradeneeded = function(e) {
+      e.target.result.createObjectStore('produtos', { keyPath: 'id' });
+    };
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror   = function(e) { reject(e.target.error); };
+  });
 }
-
-function clearSearch() {
-  document.getElementById('search').value = '';
-  searchQuery = '';
-  updateLabels();
-  setHint('Aponte a câmera para o marcador impresso');
-}
-
-function updateLabels() {
-  Object.entries(produtos).forEach(([id, p]) => {
-    const label = document.getElementById(p.labelId);
-    const text = document.getElementById(p.textId);
-    if (!label || !text) return;
-    const isMatch = searchQuery && (id === searchQuery || p.nome.toLowerCase().includes(searchQuery));
-    const isSearching = searchQuery.length > 0;
-    if (isMatch) {
-      label.setAttribute('material', 'color: #1b5e20; opacity: 0.95; side: double');
-      text.setAttribute('color', '#ffffff');
-    } else if (isSearching) {
-      label.setAttribute('material', 'color: #333; opacity: 0.6; side: double');
-      text.setAttribute('color', '#aaaaaa');
-    } else {
-      label.setAttribute('material', 'color: #1a1a2e; opacity: 0.92; side: double');
-      text.setAttribute('color', 'white');
-    }
+function dbGetAll(db) {
+  return new Promise(function(resolve, reject) {
+    var req = db.transaction('produtos', 'readonly').objectStore('produtos').getAll();
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror   = function(e) { reject(e.target.error); };
   });
 }
 
-function openModal(id) {
-  const p = produtos[id];
-  if (!p) return;
-  document.getElementById('m-nome').textContent = p.nome;
-  document.getElementById('m-ref').textContent = p.ref;
-  document.getElementById('m-cat').textContent = p.cat;
-  document.getElementById('m-cor').textContent = p.cor;
-  document.getElementById('m-estoque').textContent = p.estoque;
-  document.getElementById('m-loc').textContent = p.loc;
-  document.getElementById('modal').classList.add('open');
-}
+// ── AR principal ──────────────────────────────────────────────────────────────
+abrirDB().then(dbGetAll).then(function(produtos) {
+  var validos = produtos.filter(function(p) { return p.marcadorId >= 0; });
 
-function closeModal() {
-  document.getElementById('modal').classList.remove('open');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  Object.entries(produtos).forEach(([id, p]) => {
-    const marker = document.getElementById(p.markerId);
-    if (!marker) return;
-
-    // markerFound funciona no mobile (click DOM não dispara no canvas WebGL)
-    marker.addEventListener('markerFound', () => openModal(id));
-  });
-
-  // Corrige zoom da câmera no mobile após AR.js inicializar
-  const scene = document.querySelector('a-scene');
-  scene.addEventListener('loaded', () => {
-    const video = document.querySelector('#arjs-video') || document.querySelector('video');
-    if (video) {
-      video.style.objectFit = 'cover';
-    }
-  });
-});
-
-// Esconde hint após 5s — bug fix: ambas as linhas dentro do if
-setTimeout(() => {
-  const h = document.getElementById('hint');
-  if (h) {
-    h.style.transition = 'opacity 1s';
-    h.style.opacity = '0';
-    hintHidden = true;
+  if (!validos.length) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('no-produtos').style.display = 'flex';
+    return;
   }
-}, 5000);
-</script>
 
+  setLoad(30, 'Iniciando AR...');
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(new THREE.Color('black'), 0);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.domElement.style.position = 'fixed';
+  renderer.domElement.style.inset = '0';
+  renderer.domElement.style.zIndex = '1';
+  document.body.appendChild(renderer.domElement);
+  document.getElementById('ar-canvas').style.display = 'none';
+
+  var scene  = new THREE.Scene();
+  var camera = new THREE.Camera();
+  scene.add(camera);
+
+  // AR Toolkit
+  var arSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
+  arSource.init(function() {
+    // Garante que o vídeo fique atrás do canvas 3D
+    var vid = document.querySelector('video');
+    if (vid) {
+      vid.style.position = 'fixed';
+      vid.style.inset = '0';
+      vid.style.zIndex = '0';
+      vid.style.width = '100%';
+      vid.style.height = '100%';
+      vid.style.objectFit = 'cover';
+    }
+    onResize();
+    setLoad(70, 'Câmera pronta...');
+  });
+
+  var arContext = new THREEx.ArToolkitContext({
+    cameraParametersUrl: 'https://jeromeetienne.github.io/AR.js/data/data/camera_para.dat',
+    detectionMode: 'mono_and_matrix',
+    matrixCodeType: '3x3',
+  });
+  arContext.init(function() {
+    camera.projectionMatrix.copy(arContext.getProjectionMatrix());
+    setLoad(100, 'Pronto!');
+    setTimeout(function() { document.getElementById('loading').style.display = 'none'; }, 400);
+  });
+
+  window.addEventListener('resize', onResize);
+  function onResize() {
+    arSource.onResizeElement();
+    arSource.copyElementSizeTo(renderer.domElement);
+    if (arContext.arController) arSource.copyElementSizeTo(arContext.arController.canvas);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  // Cria um marker + label HTML por produto
+  var markers = [];
+
+  validos.forEach(function(p) {
+    var markerRoot = new THREE.Group();
+    scene.add(markerRoot);
+
+    new THREEx.ArMarkerControls(arContext, markerRoot, {
+      type: 'barcode',
+      barcodeValue: p.marcadorId,
+    });
+
+    // Label HTML
+    var el = document.createElement('div');
+    el.className = 'ar-label';
+    el.innerHTML =
+      '<div class="lbl-nome">' + esc(p.nome) + '</div>' +
+      (p.ref     ? '<div class="lbl-ref">'  + esc(p.ref)     + '</div>' : '') +
+      (p.estoque ? '<div class="lbl-est">'  + esc(p.estoque) + '</div>' : '');
+    el.addEventListener('click', function() { abrirInfo(p); });
+    document.body.appendChild(el);
+
+    // Ponto 3D acima do centro do marker (em coordenadas locais do markerRoot)
+    var anchor = new THREE.Vector3(0, 0, 0);
+
+    markers.push({ markerRoot: markerRoot, el: el, anchor: anchor });
+  });
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  var _worldPos = new THREE.Vector3();
+  var _proj     = new THREE.Vector3();
+
+  // Loop
+  requestAnimationFrame(function loop() {
+    requestAnimationFrame(loop);
+    if (!arSource.ready) return;
+    arContext.update(arSource.domElement);
+    renderer.render(scene, camera);
+
+    var W = window.innerWidth;
+    var H = window.innerHeight;
+
+    markers.forEach(function(m) {
+      if (!m.markerRoot.visible) {
+        m.el.style.display = 'none';
+        return;
+      }
+
+      // Pega posição world do centro do marker
+      m.markerRoot.updateMatrixWorld(true);
+      _worldPos.setFromMatrixPosition(m.markerRoot.matrixWorld);
+
+      // Projeta para NDC
+      _proj.copy(_worldPos);
+      _proj.project(camera);
+
+      // Converte NDC → pixels
+      var sx = ( _proj.x * 0.5 + 0.5) * W;
+      var sy = (-_proj.y * 0.5 + 0.5) * H;
+
+      // Coloca o label acima do ponto projetado
+      m.el.style.display = 'block';
+      m.el.style.left = sx + 'px';
+      m.el.style.top  = (sy - 20) + 'px';  // 20px acima do centro projetado
+    });
+  });
+
+}).catch(function(err) {
+  document.getElementById('load-txt').textContent = 'Erro: ' + err.message;
+});
+</script>
 </body>
 </html>

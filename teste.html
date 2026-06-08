@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teste AR básico</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+  <script src="https://jeromeetienne.github.io/AR.js/three.js/build/ar.js"></script>
+</head>
+<body style="margin:0;overflow:hidden;">
+<script>
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(new THREE.Color('lightgrey'), 0);
+  renderer.setSize(640, 480);
+  renderer.domElement.style.position = 'absolute';
+  renderer.domElement.style.top = '0px';
+  renderer.domElement.style.left = '0px';
+  document.body.appendChild(renderer.domElement);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.Camera();
+  scene.add(camera);
+
+  var light = new THREE.AmbientLight(0xffffff);
+  scene.add(light);
+
+  var arToolkitSource = new THREEx.ArToolkitSource({ sourceType: 'webcam' });
+  arToolkitSource.init(function onReady() {
+    onResize();
+  });
+
+  window.addEventListener('resize', onResize);
+  function onResize() {
+    arToolkitSource.onResizeElement();
+    arToolkitSource.copyElementSizeTo(renderer.domElement);
+    if (arToolkitContext.arController !== null) {
+      arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+    }
+  }
+
+  var arToolkitContext = new THREEx.ArToolkitContext({
+    cameraParametersUrl: 'https://jeromeetienne.github.io/AR.js/data/data/camera_para.dat',
+    detectionMode: 'mono',
+  });
+  arToolkitContext.init(function onCompleted() {
+    camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+  });
+
+  var markerRoot = new THREE.Group();
+  scene.add(markerRoot);
+
+  var markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+    type: 'pattern',
+    patternUrl: 'https://jeromeetienne.github.io/AR.js/data/data/patt.hiro',
+  });
+
+  // Cubo vermelho simples sobre o marcador
+  var geometry = new THREE.CubeGeometry(1, 1, 1);
+  var material = new THREE.MeshNormalMaterial({ transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  var mesh = new THREE.Mesh(geometry, material);
+  mesh.position.y = 0.5;
+  markerRoot.add(mesh);
+
+  requestAnimationFrame(function animate() {
+    requestAnimationFrame(animate);
+    if (arToolkitSource.ready === false) return;
+    arToolkitContext.update(arToolkitSource.domElement);
+    renderer.render(scene, camera);
+  });
+</script>
+</body>
+</html>

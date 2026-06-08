@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Vitrine AR — Cadastro</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #f5f5f5; min-height: 100vh; }
+    header { background: #111; color: #fff; padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header a { margin-left: auto; color: #4fc3f7; font-size: 13px; text-decoration: none; }
+    .container { max-width: 480px; margin: 0 auto; padding: 20px 16px; }
+    .card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    .card h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: #111; }
+    label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; margin-top: 12px; }
+    label:first-of-type { margin-top: 0; }
+    input[type=text] { width: 100%; padding: 11px 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; outline: none; background: #fafafa; }
+    input:focus { border-color: #111; background: #fff; }
+    .btn-primary { width: 100%; margin-top: 16px; padding: 14px; background: #111; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+
+    .produto-item { background: #fff; border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+    .marcador-preview { width: 56px; height: 56px; flex-shrink: 0; border: 2px solid #eee; border-radius: 8px; overflow: hidden; background: #fff; }
+    .marcador-preview img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+    .produto-info { flex: 1; min-width: 0; }
+    .produto-nome { font-size: 14px; font-weight: 600; color: #111; }
+    .produto-ref { font-size: 12px; color: #888; margin-top: 2px; }
+    .produto-marcador { font-size: 11px; color: #4fc3f7; margin-top: 3px; }
+    .btn-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+    .btn-imprimir { background: #e3f2fd; color: #1976d2; border: none; border-radius: 8px; padding: 5px 10px; font-size: 11px; cursor: pointer; font-weight: 600; }
+    .btn-del { background: none; border: none; color: #ccc; font-size: 22px; cursor: pointer; padding: 4px; }
+    .empty { text-align: center; color: #aaa; font-size: 13px; padding: 32px 0; }
+
+    #print-modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    #print-modal.open { display: flex; }
+    #print-card { background: #fff; border-radius: 20px; padding: 28px 24px; width: 90%; max-width: 360px; text-align: center; }
+    #print-card h3 { font-size: 17px; margin-bottom: 4px; }
+    #print-card p { font-size: 13px; color: #888; margin-bottom: 16px; }
+    #print-img-wrap { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; display: inline-block; margin-bottom: 12px; }
+    #print-img-wrap img { display: block; width: 180px; height: 180px; image-rendering: pixelated; }
+    #print-nome-label { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 16px; }
+    .print-btns { display: flex; gap: 8px; }
+    .print-btns button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 13px; cursor: pointer; font-weight: 600; }
+    #btn-grande { background: #111; color: #fff; }
+    #btn-pequeno { background: #4fc3f7; color: #000; }
+    #btn-fechar-print { background: #eee; color: #333; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Vitrine AR — Cadastro</h1>
+  <a href="index.html">← Ver AR</a>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Novo Produto</h2>
+    <label>Nome *</label>
+    <input id="f-nome" type="text" placeholder="ex: Fone de Ouvido" />
+    <label>Referência</label>
+    <input id="f-ref" type="text" placeholder="ex: REF-001" />
+    <label>Estoque</label>
+    <input id="f-estoque" type="text" placeholder="ex: 5 unidades" />
+    <label>Localização</label>
+    <input id="f-loc" type="text" placeholder="ex: Prateleira A1" />
+    <button class="btn-primary" onclick="cadastrar()">Salvar e gerar marcador</button>
+  </div>
+
+  <div class="card">
+    <h2>Produtos cadastrados</h2>
+    <div id="lista"></div>
+  </div>
+</div>
+
+<div id="print-modal">
+  <div id="print-card">
+    <h3 id="print-titulo">Marcador AR</h3>
+    <p>Imprima e cole no produto</p>
+    <div id="print-img-wrap">
+      <img id="print-img" src="" />
+    </div>
+    <div id="print-nome-label"></div>
+    <div class="print-btns">
+      <button id="btn-grande"  onclick="imprimir('grande')">Grande (12 cm)</button>
+      <button id="btn-pequeno" onclick="imprimir('pequeno')">Pequeno (4 cm)</button>
+      <button id="btn-fechar-print" onclick="fecharPrint()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var CDN = 'https://cdn.jsdelivr.net/gh/nicolocarpignoli/artoolkit-barcode-markers-collection@master/3x3/';
+var NUM_MARCADORES = 64;
+
+function urlMarcador(id) { return CDN + id + '.png'; }
+
+// ── IndexedDB ─────────────────────────────────────────────────────────────────
+var _db = null;
+function abrirDB() {
+  return new Promise(function(resolve, reject) {
+    if (_db) { resolve(_db); return; }
+    var req = indexedDB.open('vt-ar', 2);
+    req.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains('produtos')) db.createObjectStore('produtos', { keyPath: 'id' });
+    };
+    req.onsuccess = function(e) { _db = e.target.result; resolve(_db); };
+    req.onerror   = function(e) { reject(e.target.error); };
+  });
+}
+function dbGetAll() {
+  return abrirDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var req = db.transaction('produtos','readonly').objectStore('produtos').getAll();
+      req.onsuccess = function(e) { resolve(e.target.result); };
+      req.onerror   = function(e) { reject(e.target.error); };
+    });
+  });
+}
+function dbPut(obj) {
+  return abrirDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var req = db.transaction('produtos','readwrite').objectStore('produtos').put(obj);
+      req.onsuccess = function() { resolve(); };
+      req.onerror   = function(e) { reject(e.target.error); };
+    });
+  });
+}
+function dbDelete(id) {
+  return abrirDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var req = db.transaction('produtos','readwrite').objectStore('produtos').delete(id);
+      req.onsuccess = function() { resolve(); };
+      req.onerror   = function(e) { reject(e.target.error); };
+    });
+  });
+}
+
+// ── Próximo ID livre ──────────────────────────────────────────────────────────
+async function proximoId() {
+  var produtos = await dbGetAll();
+  var usados = produtos.map(function(p) { return p.marcadorId; });
+  for (var i = 0; i < NUM_MARCADORES; i++) {
+    if (usados.indexOf(i) === -1) return i;
+  }
+  return null;
+}
+
+// ── Cadastro ──────────────────────────────────────────────────────────────────
+async function cadastrar() {
+  var nome = document.getElementById('f-nome').value.trim();
+  if (!nome) { document.getElementById('f-nome').focus(); return; }
+
+  var marcadorId = await proximoId();
+  if (marcadorId === null) { alert('Limite de ' + NUM_MARCADORES + ' produtos atingido.'); return; }
+
+  var produto = {
+    id:        Date.now().toString(),
+    nome:      nome,
+    ref:       document.getElementById('f-ref').value.trim(),
+    estoque:   document.getElementById('f-estoque').value.trim(),
+    loc:       document.getElementById('f-loc').value.trim(),
+    marcadorId: marcadorId,
+  };
+
+  await dbPut(produto);
+  ['f-nome','f-ref','f-estoque','f-loc'].forEach(function(id) { document.getElementById(id).value = ''; });
+  await renderLista();
+  abrirPrint(produto);
+}
+
+// ── Print modal ───────────────────────────────────────────────────────────────
+var _printProduto = null;
+
+function abrirPrint(p) {
+  _printProduto = p;
+  document.getElementById('print-img').src = urlMarcador(p.marcadorId);
+  document.getElementById('print-titulo').textContent = 'Marcador #' + p.marcadorId;
+  document.getElementById('print-nome-label').textContent = p.nome + (p.ref ? ' — ' + p.ref : '');
+  document.getElementById('print-modal').classList.add('open');
+}
+
+function fecharPrint() { document.getElementById('print-modal').classList.remove('open'); }
+
+function imprimir(modo) {
+  if (!_printProduto) return;
+  var params = new URLSearchParams({ id: _printProduto.marcadorId, nome: _printProduto.nome, ref: _printProduto.ref || '', modo: modo });
+  window.open('print.html?' + params.toString(), '_blank');
+}
+
+// ── Lista ─────────────────────────────────────────────────────────────────────
+async function renderLista() {
+  var el = document.getElementById('lista');
+  var produtos = await dbGetAll();
+  if (!produtos.length) { el.innerHTML = '<p class="empty">Nenhum produto cadastrado ainda.</p>'; return; }
+  el.innerHTML = '';
+  produtos.slice().reverse().forEach(function(p) {
+    var div = document.createElement('div');
+    div.className = 'produto-item';
+
+    var prev = document.createElement('div');
+    prev.className = 'marcador-preview';
+    var img = document.createElement('img');
+    img.src = urlMarcador(p.marcadorId);
+    prev.appendChild(img);
+
+    var info = document.createElement('div');
+    info.className = 'produto-info';
+    info.innerHTML =
+      '<div class="produto-nome">' + esc(p.nome) + '</div>' +
+      (p.ref ? '<div class="produto-ref">' + esc(p.ref) + '</div>' : '') +
+      '<div class="produto-marcador">Marcador #' + p.marcadorId + '</div>';
+
+    var actions = document.createElement('div');
+    actions.className = 'btn-actions';
+
+    var btnImp = document.createElement('button');
+    btnImp.className = 'btn-imprimir';
+    btnImp.textContent = 'Imprimir';
+    btnImp.onclick = (function(pp) { return function() { abrirPrint(pp); }; })(p);
+
+    var btnDel = document.createElement('button');
+    btnDel.className = 'btn-del';
+    btnDel.textContent = '×';
+    btnDel.onclick = (function(pid) { return function() { deletar(pid); }; })(p.id);
+
+    actions.appendChild(btnImp);
+    actions.appendChild(btnDel);
+    div.appendChild(prev); div.appendChild(info); div.appendChild(actions);
+    el.appendChild(div);
+  });
+}
+
+async function deletar(id) {
+  if (!confirm('Remover este produto?')) return;
+  await dbDelete(id);
+  await renderLista();
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+renderLista();
+</script>
+</body>
+</html>

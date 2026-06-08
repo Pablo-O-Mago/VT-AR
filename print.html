@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Imprimir Marcador AR</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #fff; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; gap: 20px; }
+    h1 { font-size: 20px; font-weight: 700; }
+    p  { font-size: 13px; color: #555; text-align: center; max-width: 420px; }
+
+    .marker-wrap { background: #fff; padding: 40px; border: 1px dashed #ccc; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .marker-wrap img { display: block; width: 260px; height: 260px; image-rendering: pixelated; }
+    .marker-nome { font-size: 14px; font-weight: 600; color: #333; }
+
+    .btns { display: flex; gap: 10px; }
+    .btns button { padding: 12px 24px; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    #btn-grande  { background: #111; color: #fff; }
+    #btn-pequeno { background: #4fc3f7; color: #000; }
+
+    @media print {
+      body { margin: 0; padding: 0; display: block; }
+      .btns, p, h1 { display: none !important; }
+      .marker-wrap { border: none; position: absolute; top: 0; left: 0; }
+
+      body.modo-grande  .marker-wrap { padding: 20mm; }
+      body.modo-grande  .marker-wrap img { width: 120mm !important; height: 120mm !important; }
+      body.modo-grande  .marker-nome { font-size: 14pt; }
+
+      body.modo-pequeno .marker-wrap { padding: 8mm; }
+      body.modo-pequeno .marker-wrap img { width: 40mm !important; height: 40mm !important; }
+      body.modo-pequeno .marker-nome { font-size: 7pt; }
+    }
+  </style>
+</head>
+<body class="modo-grande">
+  <h1 id="titulo">Marcador AR</h1>
+  <p>A margem branca ao redor é obrigatória para a detecção.</p>
+
+  <div class="marker-wrap">
+    <img id="marker-img" src="" alt="Marcador AR" />
+    <div class="marker-nome" id="marker-nome"></div>
+  </div>
+
+  <div class="btns">
+    <button id="btn-grande"  onclick="imprimir('grande')">Grande (12 cm)</button>
+    <button id="btn-pequeno" onclick="imprimir('pequeno')">Pequeno (4 cm)</button>
+  </div>
+
+  <script>
+    var params = new URLSearchParams(location.search);
+    var id   = parseInt(params.get('id') || '0');
+    var nome = params.get('nome') || '';
+    var ref  = params.get('ref')  || '';
+
+    document.getElementById('marker-img').src = 'https://cdn.jsdelivr.net/gh/nicolocarpignoli/artoolkit-barcode-markers-collection@master/3x3/' + id + '.png';
+    document.getElementById('titulo').textContent = 'Marcador #' + id + (nome ? ' — ' + nome : '');
+    document.getElementById('marker-nome').textContent = (nome || 'Marcador #' + id) + (ref ? ' / ' + ref : '');
+
+    function imprimir(modo) {
+      document.body.className = 'modo-' + modo;
+      window.print();
+    }
+  </script>
+</body>
+</html>
