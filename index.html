@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vitrine AR — Protótipo</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    #ui { position: fixed; top: 0; left: 0; right: 0; z-index: 999; padding: 10px 14px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.55); }
+    #search { flex: 1; padding: 7px 12px; border-radius: 20px; border: none; font-size: 14px; outline: none; }
+    #clear-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    #clear-btn:hover { background: rgba(255,255,255,0.25); }
+    #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; z-index: 999; text-align: center; pointer-events: none; }
+    #modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center; }
+    #modal.open { display: flex; }
+    #modal-card { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 32px; width: 100%; max-width: 480px; }
+    #modal-card h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; }
+    #modal-card .ref { font-size: 13px; color: #888; margin: 0 0 16px; }
+    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .info-row:last-of-type { border-bottom: none; }
+    .info-label { color: #888; }
+    .info-val { font-weight: 500; }
+    #close-btn { width: 100%; margin-top: 16px; padding: 12px; background: #111; color: #fff; border: none; border-radius: 12px; font-size: 15px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="ui">
+  <input id="search" type="text" placeholder="Buscar por código (ex: 001)" oninput="onSearch(this.value)" />
+  <button id="clear-btn" onclick="clearSearch()">Limpar</button>
+</div>
+
+<div id="hint">Aponte a câmera para o marcador impresso</div>
+
+<div id="modal">
+  <div id="modal-card">
+    <h2 id="m-nome"></h2>
+    <p class="ref" id="m-ref"></p>
+    <div class="info-row"><span class="info-label">Categoria</span><span class="info-val" id="m-cat"></span></div>
+    <div class="info-row"><span class="info-label">Cor</span><span class="info-val" id="m-cor"></span></div>
+    <div class="info-row"><span class="info-label">Estoque</span><span class="info-val" id="m-estoque"></span></div>
+    <div class="info-row"><span class="info-label">Localização</span><span class="info-val" id="m-loc"></span></div>
+    <button id="close-btn" onclick="closeModal()">Fechar</button>
+  </div>
+</div>
+
+<a-scene
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+  renderer="logarithmicDepthBuffer: true; antialias: true;"
+  vr-mode-ui="enabled: false"
+>
+
+  <!-- ITEM 001 — Fone (marcador Hiro padrão) -->
+  <a-marker type="pattern" url="https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.hiro" id="marker-001">
+    <a-entity position="0 0.1 0" rotation="-90 0 0">
+      <a-plane id="label-001"
+        width="1.8" height="0.5"
+        material="color: #1a1a2e; opacity: 0.92; side: double"
+        position="0 0 0">
+      </a-plane>
+      <a-text id="text-001"
+        value="FONE\nRef: 001"
+        align="center"
+        color="white"
+        width="1.6"
+        position="0 0 0.01"
+        font="roboto">
+      </a-text>
+      <a-plane
+        width="1.8" height="0.08"
+        material="color: #4fc3f7; opacity: 0.95; side: double"
+        position="0 -0.21 0.005">
+      </a-plane>
+    </a-entity>
+  </a-marker>
+
+  <!-- ITEM 002 — Teclado (marcador Kanji) -->
+  <a-marker type="pattern" url="https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.kanji" id="marker-002">
+    <a-entity position="0 0.1 0" rotation="-90 0 0">
+      <a-plane id="label-002"
+        width="1.8" height="0.5"
+        material="color: #1a1a2e; opacity: 0.92; side: double"
+        position="0 0 0">
+      </a-plane>
+      <a-text id="text-002"
+        value="TECLADO\nRef: 002"
+        align="center"
+        color="white"
+        width="1.6"
+        position="0 0 0.01"
+        font="roboto">
+      </a-text>
+      <a-plane
+        width="1.8" height="0.08"
+        material="color: #4fc3f7; opacity: 0.95; side: double"
+        position="0 -0.21 0.005">
+      </a-plane>
+    </a-entity>
+  </a-marker>
+
+  <!-- câmera AR -->
+  <a-entity camera></a-entity>
+</a-scene>
+
+<script>
+const produtos = {
+  "001": { nome: "Fone de Ouvido", ref: "Ref: 001", cat: "Eletrônico", cor: "Preto", estoque: "3 unidades", loc: "Prateleira A1", markerId: "marker-001", labelId: "label-001", textId: "text-001" },
+  "002": { nome: "Teclado Mecânico", ref: "Ref: 002", cat: "Periférico", cor: "Branco", estoque: "1 unidade", loc: "Prateleira A2", markerId: "marker-002", labelId: "label-002", textId: "text-002" },
+};
+
+let searchQuery = "";
+
+function onSearch(val) {
+  searchQuery = val.trim().toLowerCase();
+  updateLabels();
+  document.getElementById('hint').textContent = searchQuery
+    ? `Buscando: ${searchQuery.toUpperCase()} — procure o item em verde`
+    : 'Aponte a câmera para o marcador impresso';
+}
+
+function clearSearch() {
+  document.getElementById('search').value = '';
+  searchQuery = '';
+  updateLabels();
+  document.getElementById('hint').textContent = 'Aponte a câmera para o marcador impresso';
+}
+
+function updateLabels() {
+  Object.entries(produtos).forEach(([id, p]) => {
+    const label = document.getElementById(p.labelId);
+    const text = document.getElementById(p.textId);
+    if (!label || !text) return;
+    const isMatch = searchQuery && (id === searchQuery || p.nome.toLowerCase().includes(searchQuery));
+    const isSearching = searchQuery.length > 0;
+    if (isMatch) {
+      label.setAttribute('material', 'color: #1b5e20; opacity: 0.95; side: double');
+      text.setAttribute('color', '#ffffff');
+    } else if (isSearching) {
+      label.setAttribute('material', 'color: #333; opacity: 0.6; side: double');
+      text.setAttribute('color', '#aaaaaa');
+    } else {
+      label.setAttribute('material', 'color: #1a1a2e; opacity: 0.92; side: double');
+      text.setAttribute('color', 'white');
+    }
+  });
+}
+
+function openModal(id) {
+  const p = produtos[id];
+  if (!p) return;
+  document.getElementById('m-nome').textContent = p.nome;
+  document.getElementById('m-ref').textContent = p.ref;
+  document.getElementById('m-cat').textContent = p.cat;
+  document.getElementById('m-cor').textContent = p.cor;
+  document.getElementById('m-estoque').textContent = p.estoque;
+  document.getElementById('m-loc').textContent = p.loc;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+// Clique nos marcadores para abrir modal
+document.addEventListener('DOMContentLoaded', () => {
+  Object.entries(produtos).forEach(([id, p]) => {
+    const marker = document.getElementById(p.markerId);
+    if (marker) {
+      marker.addEventListener('click', () => openModal(id));
+    }
+  });
+});
+
+// Esconde hint após 5s
+setTimeout(() => {
+  const h = document.getElementById('hint');
+  if (h) h.style.opacity = '0';
+  h.style.transition = 'opacity 1s';
+}, 5000);
+</script>
+
+</body>
+</html>
