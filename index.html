@@ -2,17 +2,36 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Vitrine AR — Protótipo</title>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <style>
     body { margin: 0; overflow: hidden; font-family: sans-serif; }
+
+    /* Garante que o vídeo da câmera ocupe a tela toda sem zoom */
+    #arjs-video, video {
+      object-fit: cover !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+    }
+
+    canvas {
+      width: 100vw !important;
+      height: 100vh !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+    }
+
     #ui { position: fixed; top: 0; left: 0; right: 0; z-index: 999; padding: 10px 14px; display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.55); }
     #search { flex: 1; padding: 7px 12px; border-radius: 20px; border: none; font-size: 14px; outline: none; }
     #clear-btn { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
     #clear-btn:hover { background: rgba(255,255,255,0.25); }
-    #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; z-index: 999; text-align: center; pointer-events: none; }
+    #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: #fff; font-size: 13px; padding: 8px 18px; border-radius: 20px; z-index: 999; text-align: center; pointer-events: none; transition: opacity 1s; white-space: nowrap; }
     #modal { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); align-items: flex-end; justify-content: center; }
     #modal.open { display: flex; }
     #modal-card { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 32px; width: 100%; max-width: 480px; }
@@ -101,8 +120,8 @@
     </a-entity>
   </a-marker>
 
-  <!-- câmera AR -->
-  <a-entity camera></a-entity>
+  <!-- câmera AR com FOV ajustado para mobile -->
+  <a-entity camera fov="60"></a-entity>
 </a-scene>
 
 <script>
@@ -112,20 +131,29 @@ const produtos = {
 };
 
 let searchQuery = "";
+let hintHidden = false;
+
+function setHint(text) {
+  const h = document.getElementById('hint');
+  if (!h) return;
+  h.style.opacity = '1';
+  h.textContent = text;
+  hintHidden = false;
+}
 
 function onSearch(val) {
   searchQuery = val.trim().toLowerCase();
   updateLabels();
-  document.getElementById('hint').textContent = searchQuery
+  setHint(searchQuery
     ? `Buscando: ${searchQuery.toUpperCase()} — procure o item em verde`
-    : 'Aponte a câmera para o marcador impresso';
+    : 'Aponte a câmera para o marcador impresso');
 }
 
 function clearSearch() {
   document.getElementById('search').value = '';
   searchQuery = '';
   updateLabels();
-  document.getElementById('hint').textContent = 'Aponte a câmera para o marcador impresso';
+  setHint('Aponte a câmera para o marcador impresso');
 }
 
 function updateLabels() {
@@ -164,21 +192,33 @@ function closeModal() {
   document.getElementById('modal').classList.remove('open');
 }
 
-// Clique nos marcadores para abrir modal
 document.addEventListener('DOMContentLoaded', () => {
   Object.entries(produtos).forEach(([id, p]) => {
     const marker = document.getElementById(p.markerId);
-    if (marker) {
-      marker.addEventListener('click', () => openModal(id));
+    if (!marker) return;
+
+    // markerFound funciona no mobile (click DOM não dispara no canvas WebGL)
+    marker.addEventListener('markerFound', () => openModal(id));
+  });
+
+  // Corrige zoom da câmera no mobile após AR.js inicializar
+  const scene = document.querySelector('a-scene');
+  scene.addEventListener('loaded', () => {
+    const video = document.querySelector('#arjs-video') || document.querySelector('video');
+    if (video) {
+      video.style.objectFit = 'cover';
     }
   });
 });
 
-// Esconde hint após 5s
+// Esconde hint após 5s — bug fix: ambas as linhas dentro do if
 setTimeout(() => {
   const h = document.getElementById('hint');
-  if (h) h.style.opacity = '0';
-  h.style.transition = 'opacity 1s';
+  if (h) {
+    h.style.transition = 'opacity 1s';
+    h.style.opacity = '0';
+    hintHidden = true;
+  }
 }, 5000);
 </script>
 
